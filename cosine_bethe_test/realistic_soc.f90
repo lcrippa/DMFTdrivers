@@ -18,8 +18,8 @@ program soc_test_model
   real(8),dimension(:,:),allocatable            :: lambdasym_vectors
   complex(8),dimension(:,:,:,:,:),allocatable   :: Hsym_basis
   complex(8),dimension(:,:,:,:,:),allocatable   :: Hsym_t2g
-  complex(8),dimension(:,:,:,:),allocatable     :: spinorbit_matrix_d_nn,spinorbit_matrix_t2g_nn
-  complex(8),dimension(:,:),allocatable         :: spinorbit_matrix_d,spinorbit_matrix_t2g, u_jbasis
+  complex(8),dimension(:,:,:,:),allocatable     :: spinorbit_matrix_t2g_nn
+  complex(8),dimension(:,:),allocatable         :: spinorbit_matrix_t2g, u_jbasis
   !The local hybridization function:
   complex(8),allocatable                        :: Hloc_imp(:,:),Hloc_latt(:,:),tmpmat(:,:)
   complex(8),allocatable                        :: Hloc_imp_nn(:,:,:,:),Hloc_latt_nn(:,:,:,:)
@@ -61,7 +61,7 @@ program soc_test_model
   call parse_input_variable(wmixing,"wmixing",finput,default=0.5d0,comment="Mixing bath parameter")
   call parse_input_variable(DOSFLAG,"DOSFLAG",finput,default=.false.)
   call parse_input_variable(ZJBASIS,"ZJBASIS",finput,default=.false.)
-  call parse_input_variable(PARAMETRIZATION,"PARAMETRIZATION",finput,default="diagonal")
+  call parse_input_variable(PARAMETRIZATION,"PARAMETRIZATION",finput,default="symmetric")
   call parse_input_variable(Le,"LE",finput,default=500)
   call parse_input_variable(Nx,"Nx",finput,default=100,comment="Number of kx point for 2d BZ integration")
   call parse_input_variable(mixG0,"mixG0",finput,default=.false.)
@@ -100,35 +100,24 @@ program soc_test_model
 
   !The spin-orbit matrix, initialized by hand
 
-  if(Nspin/=2.OR.Norb/=3)then
-    allocate(spinorbit_matrix_d(10,10));spinorbit_matrix_d=zero
-    allocate(spinorbit_matrix_d_nn(Nspin,Nspin,5,5));spinorbit_matrix_d_nn=zero
-    allocate(spinorbit_matrix_t2g(2*Norb,2*Norb));spinorbit_matrix_t2g=zero
-    allocate(spinorbit_matrix_t2g_nn(Nspin,Nspin,Norb,Norb));spinorbit_matrix_t2g_nn=zero
-    ZJBASIS=.false.
-    print*,"Wrong setup from input file: Nspin=2 Norb=3 -> 6Spin-Orbitals: You can't use spinorbit here. Everything will be zero, Hlambda will be dummy"
-  else
-    allocate(spinorbit_matrix_d(10,10));spinorbit_matrix_d=zero
-    allocate(spinorbit_matrix_d_nn(Nspin,Nspin,5,5));spinorbit_matrix_d_nn=zero
-    allocate(spinorbit_matrix_t2g(6,6));spinorbit_matrix_t2g=zero
-    allocate(u_jbasis(6,6));u_jbasis=zero
-    allocate(spinorbit_matrix_t2g_nn(Nspin,Nspin,3,3));spinorbit_matrix_t2g_nn=zero
-    !
-    spinorbit_matrix_t2g(1,:) = lambda*(-0.5)*[  zero,   -xi,   zero,   zero,  zero,   one]
-    spinorbit_matrix_t2g(2,:) = lambda*(-0.5)*[    xi,  zero,   zero,   zero,  zero,   -xi]
-    spinorbit_matrix_t2g(3,:) = lambda*(-0.5)*[  zero,  zero,   zero,   -one,    xi,  zero]
-    spinorbit_matrix_t2g(4,:) = lambda*(-0.5)*[  zero,  zero,   -one,   zero,    xi,  zero]
-    spinorbit_matrix_t2g(5,:) = lambda*(-0.5)*[  zero,  zero,    -xi,    -xi,  zero,  zero]  
-    spinorbit_matrix_t2g(6,:) = lambda*(-0.5)*[   one,   xi,    zero,   zero,  zero,  zero] 
-    spinorbit_matrix_t2g_nn = so2nn(spinorbit_matrix_t2g)
-    !
-    u_jbasis(1,:) = (1.0/sqrt(6d0))*[ -one*sqrt(3d0),     one,          zero,  zero,           zero, -one*sqrt(2d0)]
-    u_jbasis(2,:) = (1.0/sqrt(6d0))*[  -xi*sqrt(3d0),     -xi,          zero,  zero,           zero,   xi*sqrt(2d0)]
-    u_jbasis(3,:) = (1.0/sqrt(6d0))*[           zero,    zero,          zero, 2*one, -one*sqrt(2d0),           zero]
-    u_jbasis(4,:) = (1.0/sqrt(6d0))*[           zero,    zero, one*sqrt(3d0),  -one, -one*sqrt(2d0),           zero]
-    u_jbasis(5,:) = (1.0/sqrt(6d0))*[           zero,    zero, -xi*sqrt(3d0),   -xi,  -xi*sqrt(2d0),           zero]  
-    u_jbasis(6,:) = (1.0/sqrt(6d0))*[           zero,   2*one,          zero,  zero,           zero,  one*sqrt(2d0)] 
-  endif
+  allocate(spinorbit_matrix_t2g(6,6));spinorbit_matrix_t2g=zero
+  allocate(u_jbasis(6,6));u_jbasis=zero
+  allocate(spinorbit_matrix_t2g_nn(Nspin,Nspin,3,3));spinorbit_matrix_t2g_nn=zero
+  !
+  spinorbit_matrix_t2g(1,:) = lambda*(-0.5)*[  zero,   -xi,   zero,   zero,  zero,   one]
+  spinorbit_matrix_t2g(2,:) = lambda*(-0.5)*[    xi,  zero,   zero,   zero,  zero,   -xi]
+  spinorbit_matrix_t2g(3,:) = lambda*(-0.5)*[  zero,  zero,   zero,   -one,    xi,  zero]
+  spinorbit_matrix_t2g(4,:) = lambda*(-0.5)*[  zero,  zero,   -one,   zero,    xi,  zero]
+  spinorbit_matrix_t2g(5,:) = lambda*(-0.5)*[  zero,  zero,    -xi,    -xi,  zero,  zero]  
+  spinorbit_matrix_t2g(6,:) = lambda*(-0.5)*[   one,   xi,    zero,   zero,  zero,  zero] 
+  spinorbit_matrix_t2g_nn = so2nn(spinorbit_matrix_t2g,nspin,3)
+  !
+  u_jbasis(1,:) = (1.0/sqrt(6d0))*[ -one*sqrt(3d0),     one,          zero,  zero,           zero, -one*sqrt(2d0)]
+  u_jbasis(2,:) = (1.0/sqrt(6d0))*[  -xi*sqrt(3d0),     -xi,          zero,  zero,           zero,   xi*sqrt(2d0)]
+  u_jbasis(3,:) = (1.0/sqrt(6d0))*[           zero,    zero,          zero, 2*one, -one*sqrt(2d0),           zero]
+  u_jbasis(4,:) = (1.0/sqrt(6d0))*[           zero,    zero, one*sqrt(3d0),  -one, -one*sqrt(2d0),           zero]
+  u_jbasis(5,:) = (1.0/sqrt(6d0))*[           zero,    zero, -xi*sqrt(3d0),   -xi,  -xi*sqrt(2d0),           zero]  
+  u_jbasis(6,:) = (1.0/sqrt(6d0))*[           zero,   2*one,          zero,  zero,           zero,  one*sqrt(2d0)] 
 
 
   !Allocate Fields:
@@ -292,8 +281,8 @@ program soc_test_model
       Hk_t2g = Hk_t2g + spinorbit_matrix_t2g
       !
       if(NORB==2)then
-        Hk(1:2,1:2) = Hk_t2g(1:3:2,1:3:2)
-        Hk(3:4,3:4) = Hk_t2g(4:6:2,4:6:2)
+        Hk(1:2,1:2) = Hk_t2g(1:2,1:2)
+        Hk(3:4,3:4) = Hk_t2g(4:5,4:5)
       else
         Hk = Hk_t2g      
       endif
@@ -311,7 +300,7 @@ program soc_test_model
       !
       !
       Zmats=zero
-      s0so=nn2so(s0)
+      s0so=nn2so(s0,nspin,norb)
       Uinv=u_jbasis
       call inv(Uinv)
       if(ZJBASIS)then
@@ -340,19 +329,21 @@ program soc_test_model
     !+---------------------------------------------------------------------------+
     !PURPOSE : reshape 
     !+---------------------------------------------------------------------------+
-    function so2nn(Hlso) result(Hnnn)
-      complex(8),dimension(Nspin*Norb,Nspin*Norb) :: Hlso
-      complex(8),dimension(Nspin,Nspin,Norb,Norb) :: Hnnn
-      integer                                     :: iorb,jorb
+    function so2nn(Hlso,n_spin,n_orb) result(Hnnn)
+      complex(8),dimension(n_spin*N_orb,n_spin*n_orb) :: Hlso
+      complex(8),dimension(n_spin,n_spin,n_orb,n_orb) :: Hnnn
+      integer                                     :: iorb,jorb,n_spin,n_orb,Nso
       integer                                     :: ispin,jspin
       integer                                     :: is,js
       Hnnn=zero
-      do ispin=1,Nspin
-        do jspin=1,Nspin
-          do iorb=1,Norb
-            do jorb=1,Norb
-              is = iorb + (ispin-1)*Norb
-              js = jorb + (jspin-1)*Norb
+      
+      
+      do ispin=1,n_spin
+        do jspin=1,n_spin
+          do iorb=1,n_orb
+            do jorb=1,n_orb
+              is = iorb + (ispin-1)*n_orb
+              js = jorb + (jspin-1)*n_orb
               Hnnn(ispin,jspin,iorb,jorb) = Hlso(is,js)
             enddo
           enddo
@@ -360,19 +351,21 @@ program soc_test_model
       enddo
     end function so2nn
 
-    function nn2so(Hnnn) result(Hlso)
-      complex(8),dimension(Nspin,Nspin,Norb,Norb) :: Hnnn
-      complex(8),dimension(Nspin*Norb,Nspin*Norb) :: Hlso
-      integer                                     :: iorb,jorb
+    function nn2so(Hnnn,n_spin,n_orb) result(Hlso)
+      complex(8),dimension(n_spin*N_orb,n_spin*n_orb) :: Hlso
+      complex(8),dimension(n_spin,n_spin,n_orb,n_orb) :: Hnnn
+      integer                                     :: iorb,jorb,n_spin,n_orb
       integer                                     :: ispin,jspin
       integer                                     :: is,js
+      
+      
       Hlso=zero
-      do ispin=1,Nspin
-        do jspin=1,Nspin
-          do iorb=1,Norb
-            do jorb=1,Norb
-              is = iorb + (ispin-1)*Norb
-              js = jorb + (jspin-1)*Norb
+      do ispin=1,n_spin
+        do jspin=1,n_spin
+          do iorb=1,n_orb
+            do jorb=1,n_orb
+              is = iorb + (ispin-1)*n_orb
+              js = jorb + (jspin-1)*n_orb
               Hlso(is,js) = Hnnn(ispin,jspin,iorb,jorb)
             enddo
           enddo
@@ -397,10 +390,10 @@ program soc_test_model
       Hloc_latt   = zero
       Hloc_latt = sum(Hk,dim=3)/Lk
       where(abs(Hloc_latt)<1.d-10) Hloc_latt=0d0
-      Hloc_latt_nn=so2nn(Hloc_latt)
+      Hloc_latt_nn=so2nn(Hloc_latt,nspin,norb)
       !
       Hloc_imp = Hloc_latt !If I'm working with HK: SOC already included
-      Hloc_imp_nn = so2nn(Hloc_imp)
+      Hloc_imp_nn = so2nn(Hloc_imp,nspin,norb)
       !
       call ed_set_hloc(Hloc_imp) !Set the Hamiltonian of the impurity problem as Hloc_imp
       !
@@ -441,18 +434,18 @@ program soc_test_model
         !
       allocate(lambdasym_vectors(Nbath,NSymMats)); lambdasym_vectors=zero
       allocate(Hsym_basis(Nspin,Nspin,Norb,Norb,NSymMats)); Hsym_basis=zero
-      allocate(Hsym_t2g(Nspin,Nspin,3,3,NSymMats)); Hsym_basis=zero
+      allocate(Hsym_t2g(Nspin,Nspin,3,3,NSymMats)); Hsym_t2g=zero
       !
       !define all the matrices
       !
       !
       !#symmetry 1
-      Hsym_t2g(:,:,:,:,1) = so2nn(zeye(Nso))
+      Hsym_t2g(:,:,:,:,1) = so2nn(zeye(3*Nspin),nspin,3)
       Hsym_t2g(:,:,:,:,2) = spinorbit_matrix_t2g_nn
       if(abs(lambda)>0.0) Hsym_t2g(:,:,:,:,2) = Hsym_t2g(:,:,:,:,2)/(-0.5*lambda)
       !
       if (NORB==2)then
-        Hsym_basis = Hsym_t2g(:,:,1:3:2,1:3:2,:)
+        Hsym_basis = Hsym_t2g(:,:,1:2,1:2,:)
       else
         Hsym_basis = Hsym_t2g
       endif
@@ -567,13 +560,13 @@ program soc_test_model
     !+---------------------------------------------------------------------------+
     
   subroutine print_a_matrix(mat)
-    real(8),dimension(Nspin*Norb,Nspin*Norb)               :: mat
-    integer                                                :: is,js,Nso,unit
-    character(len=32)                                      :: fmt
+    real(8),dimension(:,:)               :: mat
+    integer                              :: is,js,Nso,unit
+    character(len=32)                    :: fmt
     !
     unit=LOGfile
     !
-    Nso = Nspin*Norb
+    Nso = size(mat,1)
     do is=1,Nso
        write(unit,"(12(A1,F8.4,A1,2x))")&
             ('(',mat(is,js),')',js =1,Nso)
@@ -583,13 +576,13 @@ program soc_test_model
   end subroutine print_a_matrix
     
   subroutine print_c_matrix(mat)
-    complex(8),dimension(Nspin*Norb,Nspin*Norb)            :: mat
-    integer                                                :: is,js,Nso,unit
-    character(len=32)                                      :: fmt
+    complex(8),dimension(:,:)            :: mat
+    integer                              :: is,js,Nso,unit
+    character(len=32)                    :: fmt
     !
     unit=LOGfile
     !
-    Nso = Nspin*Norb
+    Nso = size(mat,1)
     do is=1,Nso
        write(unit,"(20(A1,F8.4,A1,F8.4,A1,2x))")&
             ('(',real(mat(is,js)),',',imag(mat(is,js)),')',js =1,Nso)
