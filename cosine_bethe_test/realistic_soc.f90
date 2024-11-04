@@ -11,7 +11,6 @@ program realistic_soc
   real(8)                                       :: t0,t1,t2,t3,t4
   real(8)                                       :: wmixing,lambda
 
-  real(8),dimension(5)                          :: ts
   real(8),dimension(:),allocatable              :: wm,wr
   
   real(8),dimension(:),allocatable              :: dens
@@ -56,7 +55,6 @@ program realistic_soc
   call parse_input_variable(Nx,"Nx",finput,default=100,comment="Number of kx point for 2d BZ integration")
   call parse_input_variable(mixG0,"mixG0",finput,default=.false.)
   call parse_input_variable(lambda,"lambda",finput,default=0d0,comment="soc parameter")
-  call parse_input_variable(ts,"TS",finput,default=[0.5d0,0.5d0,0.5d0,0.5d0,0.5d0],comment="hopping parameter")
 
   call ed_read_input(trim(finput))
   Nso=Nspin*Norb
@@ -87,12 +85,12 @@ program realistic_soc
   allocate(u_jbasis(6,6));u_jbasis=zero
   allocate(spinorbit_matrix_t2g_nn(Nspin,Nspin,3,3));spinorbit_matrix_t2g_nn=zero
   !
-  spinorbit_matrix_t2g(1,:) = lambda*(-0.5)*[  zero,   -xi,   zero,   zero,  zero,   one]
-  spinorbit_matrix_t2g(2,:) = lambda*(-0.5)*[    xi,  zero,   zero,   zero,  zero,   -xi]
-  spinorbit_matrix_t2g(3,:) = lambda*(-0.5)*[  zero,  zero,   zero,   -one,    xi,  zero]
-  spinorbit_matrix_t2g(4,:) = lambda*(-0.5)*[  zero,  zero,   -one,   zero,    xi,  zero]
-  spinorbit_matrix_t2g(5,:) = lambda*(-0.5)*[  zero,  zero,    -xi,    -xi,  zero,  zero]  
-  spinorbit_matrix_t2g(6,:) = lambda*(-0.5)*[   one,   xi,    zero,   zero,  zero,  zero] 
+  spinorbit_matrix_t2g(1,:) = (-0.5)*[  zero,   -xi,   zero,   zero,  zero,   one]
+  spinorbit_matrix_t2g(2,:) = (-0.5)*[    xi,  zero,   zero,   zero,  zero,   -xi]
+  spinorbit_matrix_t2g(3,:) = (-0.5)*[  zero,  zero,   zero,   -one,    xi,  zero]
+  spinorbit_matrix_t2g(4,:) = (-0.5)*[  zero,  zero,   -one,   zero,    xi,  zero]
+  spinorbit_matrix_t2g(5,:) = (-0.5)*[  zero,  zero,    -xi,    -xi,  zero,  zero]  
+  spinorbit_matrix_t2g(6,:) = (-0.5)*[   one,   xi,    zero,   zero,  zero,  zero] 
   spinorbit_matrix_t2g_nn = so2nn(spinorbit_matrix_t2g,2,3)
   !
   u_jbasis(1,:) = (1.0/sqrt(6d0))*[ -one*sqrt(3d0),     one,          zero,  zero,           zero, -one*sqrt(2d0)]
@@ -178,6 +176,7 @@ contains
       real(8),dimension(:) :: kpoint
       integer              :: N,ih,i,j
       complex(8)           :: h_k(N,N)
+      complex(8)           :: tmpmat_nn(2,2,3,3)
       complex(8)           :: hk_t2g(6,6)
       H_k = zero
       hk_t2g = zero
@@ -243,15 +242,11 @@ contains
       !
       Hk_t2g(4:6,4:6) = Hk_t2g(1:3,1:3)
       !here add SOC!
-      Hk_t2g = Hk_t2g + spinorbit_matrix_t2g
-      !
-      if(NORB==2)then
-        H_k(1:2,1:2) = Hk_t2g(1:2,1:2)
-        H_k(3:4,3:4) = Hk_t2g(4:5,4:5)
-      else
-        H_k = Hk_t2g      
-      endif
-      !
+      Hk_t2g = Hk_t2g + lambda * spinorbit_matrix_t2g
+
+      tmpmat_nn = so2nn(Hk_t2g,2,3)
+      H_k = nn2so(tmpmat_nn(:,:,1:Norb,1:Norb),Nspin,Norb)
+
     end function hk_model
 
     !+---------------------------------------------------------------------------+
@@ -371,15 +366,11 @@ contains
 
     !symmetry 2: soc matrix
     Hsym_t2g(:,:,:,:,2) = spinorbit_matrix_t2g_nn
-    if(abs(lambda)>0.0) Hsym_t2g(:,:,:,:,2) = Hsym_t2g(:,:,:,:,2)/(-0.5*lambda)
 
     !cut out the block
-    if (NORB==2)then
-      Hsym_basis = Hsym_t2g(:,:,1:2,1:2,:)
-    else
-      Hsym_basis = Hsym_t2g
-    endif
+    Hsym_basis = Hsym_t2g(:,:,1:Norb,1:Norb,:)
 
+    
     write(*,*) "Replica initialization: ed_hw_bath="//str(ed_hw_bath)
 
     do irepl=1,Nbath
@@ -460,6 +451,43 @@ contains
     endif
     
   end subroutine fit_new_bath
+
+  !+---------------------------------------------------------------------------+
+  !print zmats
+  !+---------------------------------------------------------------------------+
+    
+  subroutine print_a_matrix(mat)
+    real(8),dimension(:,:)               :: mat
+    integer                              :: is,js,NN,unit
+    character(len=32)                    :: fmt
+    !
+    unit=LOGfile
+    !
+    NN = size(mat,1)
+    do is=1,NN
+       write(unit,"(12(A1,F8.4,A1,2x))")&
+            ('(',mat(is,js),')',js =1,Nso)
+    enddo
+    write(unit,*)""
+    !
+  end subroutine print_a_matrix
+    
+  subroutine print_c_matrix(mat)
+    complex(8),dimension(:,:)            :: mat
+    integer                              :: is,js,NN,unit
+    character(len=32)                    :: fmt
+    !
+    unit=LOGfile
+    !
+    NN = size(mat,1)
+    do is=1,NN
+       write(unit,"(20(A1,F8.4,A1,F8.4,A1,2x))")&
+            ('(',real(mat(is,js)),',',imag(mat(is,js)),')',js =1,NN)
+    enddo
+    write(unit,*)""
+    !
+  end subroutine print_c_matrix
+
 
 
 
