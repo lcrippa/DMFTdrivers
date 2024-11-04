@@ -24,7 +24,7 @@ program soc_test_model
   complex(8),allocatable                        :: Hloc_imp(:,:),Hloc_latt(:,:),tmpmat(:,:)
   complex(8),allocatable                        :: Hloc_imp_nn(:,:,:,:),Hloc_latt_nn(:,:,:,:)
   real(8),dimension(:),allocatable              :: H0 !elements on the diagonal of Hloc
-  complex(8),allocatable,dimension(:,:,:,:,:)   :: Gmats
+  complex(8),allocatable,dimension(:,:,:,:,:)   :: Gmats,OneoverGmats
   complex(8),allocatable,dimension(:,:,:,:,:)   :: Greal
   complex(8),allocatable,dimension(:,:,:,:,:)   :: Smats,Smats_for_gloc
   complex(8),allocatable,dimension(:,:,:,:,:)   :: Sreal,Sreal_for_gloc
@@ -89,7 +89,7 @@ program soc_test_model
   !
   call parse_input_variable(ts,"TS",finput,default=(/(0.5d0,iii=1,size(TS))/),comment="hopping parameter")
   call parse_input_variable(Dband,"Dband",finput,default=(/(0.d0,iii=1,size(Dband))/),comment="cystal field splittig (bands shift)")
-  call parse_input_variable(Wbethe,"WBETHE",finput,default=(/(0.d0,iii=1,size(Wbethe))/),comment="Bethe half bandwidth")
+  call parse_input_variable(Wbethe,"WBETHE",finput,default=(/(1.d0,iii=1,size(Wbethe))/),comment="Bethe half bandwidth")
   call parse_input_variable(Dbethe,"DBETHE",finput,default=(/(0.d0,iii=1,size(Dbethe))/),comment="Bethe cystal field splittig (dos center)")
 
   if (Nspin>1)then
@@ -147,6 +147,7 @@ program soc_test_model
   !Allocate Fields:
   allocate(Weiss(Nspin,Nspin,Norb,Norb,Lmats),Weiss_(Nspin,Nspin,Norb,Norb,Lmats))
   allocate(Gmats(Nspin,Nspin,Norb,Norb,Lmats),Greal(Nspin,Nspin,Norb,Norb,Lreal))
+  allocate(OneoverGmats(Nspin,Nspin,Norb,Norb,Lmats))
   allocate(Smats(Nspin,Nspin,Norb,Norb,Lmats),Sreal(Nspin,Nspin,Norb,Norb,Lreal))
   allocate(Smats_for_gloc(Nspin,Nspin,Norb,Norb,Lmats),Sreal_for_gloc(Nspin,Nspin,Norb,Norb,Lreal))
   allocate(Hloc_imp(Nso,Nso))
@@ -162,6 +163,7 @@ program soc_test_model
   Weiss=zero
   Weiss_=zero
   Gmats=zero
+  OneoverGmats=zero
   Greal=zero
   Smats=zero
   Smats_for_gloc=zero
@@ -852,17 +854,21 @@ program soc_test_model
     !+---------------------------------------------------------------------------+
     subroutine get_glocal()
       !
+      allocate(tmpmat_so(Nso,Nso))
       if(DOSFLAG)then
+        print*,"Outside the function:"
+        print*,"size(ebands,1)=",size(ebands,1)
         call dmft_get_gloc(Ebands,Dbands,H0,Gmats,Smats_for_gloc,axis='mats',diagonal=.false.)
-        call dmft_get_gloc(Ebands,Dbands,H0,Greal,Sreal_for_gloc,axis='real',diagonal=.false.)
+        !call dmft_get_gloc(Ebands,Dbands,H0,Greal,Sreal_for_gloc,axis='real',diagonal=.false.)
       else
         call dmft_get_gloc(Hk,Gmats,Smats_for_gloc,axis='mats')
-        call dmft_get_gloc(Hk,Greal,Sreal_for_gloc,axis='real')
+        !call dmft_get_gloc(Hk,Greal,Sreal_for_gloc,axis='real')
       endif
       !
       call dmft_write_gf(Gmats,"Gloc",axis='mats',iprint=6)
-      call dmft_write_gf(Greal,"Gloc",axis='real',iprint=6)    
+      !call dmft_write_gf(Greal,"Gloc",axis='real',iprint=6)    
       !
+      deallocate(tmpmat_so)
     end subroutine get_glocal
     
     !+---------------------------------------------------------------------------+
@@ -872,10 +878,18 @@ program soc_test_model
     subroutine get_weissfield()
       !
       if(cg_scheme=='delta')then
-        call dmft_self_consistency(Gmats,Smats,Weiss,Hloc_imp_nn)
+        if(model=='bethe' .and. betheSC)then
+          call dmft_get_delta_normal_bethe(Gmats,Weiss,Hloc_imp_nn,Wband)
+        else
+          call dmft_self_consistency(Gmats,Smats,Weiss,Hloc_imp_nn)
+        endif
         call dmft_write_gf(Weiss,"Delta",axis='mats',iprint=6)
       else
-        call dmft_self_consistency(Gmats,Smats,Weiss)
+        if(model=='bethe' .and. betheSC)then
+          call dmft_get_weiss_normal_bethe(Gmats,Weiss,Hloc_imp_nn,Wband)
+        else
+          call dmft_self_consistency(Gmats,Smats,Weiss)
+        endif
         call dmft_write_gf(Weiss,"Weiss",axis='mats',iprint=6)
       endif          
     end subroutine get_weissfield
@@ -976,6 +990,80 @@ program soc_test_model
     write(unit,*)""
     !
   end subroutine print_c_matrix
+
+
+
+
+  subroutine dmft_get_weiss_normal_bethe(Gloc,Weiss,Hloc,Wbands)
+    complex(8),dimension(:,:,:,:,:),intent(in)    :: Gloc  ! [Nspin][Nspin][Norb][Norb][Lmats]
+    complex(8),dimension(:,:,:,:,:),intent(inout) :: Weiss ! [Nspin][Nspin][Norb][Norb][Lmats]
+    complex(8),dimension(:,:,:,:),intent(in)      :: Hloc  ! [Nspin][Nspin][Norb][Norb]
+    real(8),dimension(:),intent(in)               :: Wbands ![Nspin*Norb]
+    !aux
+    complex(8),dimension(size(Gloc,5))            :: invWeiss ![Lmats]
+    integer                                       :: Nspin,Norb,Nso,Lmats
+    integer                                       :: i,iorb,jorb,ispin,jspin,io,jo
+    !
+    !
+    !
+    if(master)then
+       !Testing part:
+       Nspin = size(Gloc,1)
+       Norb  = size(Gloc,3)
+       Lmats = size(Gloc,5)
+       Nso   = Nspin*Norb
+       !
+       !
+       !\calG0^{-1}_aa = iw + mu - H_0 - d**2/4*Gmats
+       Weiss=zero
+       do ispin=1,Nspin
+          do iorb=1,Norb
+             invWeiss = (xi*wm(:)+xmu) - Hloc(ispin,ispin,iorb,iorb) - &
+                  0.25d0*Wbands(iorb+(ispin-1)*Norb)**2*Gloc(ispin,ispin,iorb,iorb,:)
+             Weiss(ispin,ispin,iorb,iorb,:) = one/invWeiss
+          enddo
+       enddo
+       !
+       !
+    endif
+  end subroutine dmft_get_weiss_normal_bethe
+  
+  
+  subroutine dmft_get_delta_normal_bethe(Gloc,Delta,Hloc,Wbands)
+    complex(8),dimension(:,:,:,:,:),intent(in)    :: Gloc  ! [Nspin][Nspin][Norb][Norb][Lmats]
+    complex(8),dimension(:,:,:,:,:),intent(inout) :: Delta ! [Nspin][Nspin][Norb][Norb][Lmats]
+    complex(8),dimension(:,:,:,:),intent(in)      :: Hloc  ! [Nspin][Nspin][Norb][Norb]
+    real(8),dimension(:),intent(in)               :: Wbands ![Nspin*Norb]
+    !aux
+    integer                                       :: Nspin,Norb,Nso,Lmats
+    integer                                       :: i,iorb,jorb,ispin,jspin,io,jo
+    !
+    !
+    !
+    if(master)then
+       !Testing part:
+       Nspin = size(Gloc,1)
+       Norb  = size(Gloc,3)
+       Lmats = size(Gloc,5)
+       Nso   = Nspin*Norb
+       !
+       !
+       !\calG0^{-1}_aa = d**2/4*Gmats
+       Delta=zero
+       do ispin=1,Nspin
+          do iorb=1,Norb
+             Delta(ispin,ispin,iorb,iorb,:) = 0.25d0*Wbands(iorb+(ispin-1)*Norb)**2*Gloc(ispin,ispin,iorb,iorb,:)
+          enddo
+       enddo
+       !
+       !
+    endif
+  end subroutine dmft_get_delta_normal_bethe
+
+
+
+
+
 
 
 end program soc_test_model

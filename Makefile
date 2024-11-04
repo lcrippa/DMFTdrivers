@@ -89,7 +89,7 @@ debug:
 	@echo ""
 	$(call colorecho,"compiling $(EXE).f90 ", 6)
 	@echo ""
-	$(FC) $(FLAG) $(EXE).f90 -o $(DIREXE)/$(EXE) ${GLOB_INC} ${GLOB_LIB}
+	$(FC) $(FLAG) $(EXE).f90 -o $(DIREXE)/$(notdir $(EXE)) ${GLOB_INC} ${GLOB_LIB}
 	@echo "Done"
 	$(call colorecho,"created $(EXE) in  $(DIREXE)", 1)
 
