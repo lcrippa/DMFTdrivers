@@ -8,7 +8,7 @@ program realistic_soc
   
   integer                                       :: Nb,Nso,Nx,NsymMats,Lk,iloop,iorb,ispin
   logical                                       :: converged
-  real(8)                                       :: t0,t1,t2,t3,t4
+  real(8)                                       :: t0,t1,t2,t3,t4,ecf
   real(8)                                       :: wmixing,lambda
 
   real(8),dimension(:),allocatable              :: wm,wr
@@ -63,7 +63,8 @@ program realistic_soc
   t1 = 0.17d0
   t2 = 0.30d0
   t3 = 0.03d0
-  t4 = 0.04d0   
+  t4 = 0.04d0
+  ecf = 0.d0
  
   call add_ctrl_var(beta,"BETA")
   call add_ctrl_var(Norb,"NORB")
@@ -182,6 +183,9 @@ contains
       hk_t2g = zero
       !
       !the base is ordered as [[yz, xz,xy]_up, [yz, xz,xy]_dw]
+      !on-site
+      Hk_t2g(1,1) = Hk_t2g(1,1) + ecf
+      Hk_t2g(2,2) = Hk_t2g(2,2) + ecf
       !plus-minus x
       !xz,xz
       Hk_t2g(2,2) = Hk_t2g(2,2) - t2*exp(-xi*dot_product(kpoint,[1d0,0d0])) !right
