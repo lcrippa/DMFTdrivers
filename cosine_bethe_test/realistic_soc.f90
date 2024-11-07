@@ -184,64 +184,68 @@ contains
       !
       !the base is ordered as [[yz, xz,xy]_up, [yz, xz,xy]_dw]
       !on-site
-      Hk_t2g(1,1) = Hk_t2g(1,1) + ecf
-      Hk_t2g(2,2) = Hk_t2g(2,2) + ecf
+      Hk_t2g(1,1) = Hk_t2g(1,1) + ecf !on-site
+      Hk_t2g(2,2) = Hk_t2g(2,2) + ecf !on-site
+      
       !plus-minus x
-      !xz,xz
-      Hk_t2g(2,2) = Hk_t2g(2,2) - t2*exp(-xi*dot_product(kpoint,[1d0,0d0])) !right
-      Hk_t2g(2,2) = Hk_t2g(2,2) - t2*exp(-xi*dot_product(kpoint,[-1d0,0d0])) !left
-      !yz,yz
-      Hk_t2g(1,1) = Hk_t2g(1,1) - t3*exp(-xi*dot_product(kpoint,[1d0,0d0])) !right
+      !yz,yz (direction x)
+      Hk_t2g(1,1) = Hk_t2g(1,1) - t3*exp(-xi*dot_product(kpoint,[1d0,0d0]))  !right
       Hk_t2g(1,1) = Hk_t2g(1,1) - t3*exp(-xi*dot_product(kpoint,[-1d0,0d0])) !left
-      !yz,yz
-      Hk_t2g(3,3) = Hk_t2g(3,3) - t0*exp(-xi*dot_product(kpoint,[1d0,0d0])) !right
+      !xz,xz (direction y)
+      Hk_t2g(2,2) = Hk_t2g(2,2) - t2*exp(-xi*dot_product(kpoint,[1d0,0d0]))  !right
+      Hk_t2g(2,2) = Hk_t2g(2,2) - t2*exp(-xi*dot_product(kpoint,[-1d0,0d0])) !left
+      !xy,xy (direction z)
+      Hk_t2g(3,3) = Hk_t2g(3,3) - t0*exp(-xi*dot_product(kpoint,[1d0,0d0]))  !right
       Hk_t2g(3,3) = Hk_t2g(3,3) - t0*exp(-xi*dot_product(kpoint,[-1d0,0d0])) !left
       !xz,yz
-      Hk_t2g(1,2) = 0d0 !right and left
-      Hk_t2g(2,1) = 0d0 !right and left
+      Hk_t2g(1,2) = Hk_t2g(1,2) + 0d0 !right and left
+      Hk_t2g(2,1) = Hk_t2g(2,1) + 0d0 !right and left
+      
       !plus-minus y
-      !xz,xz
-      Hk_t2g(2,2) = Hk_t2g(2,2) - t3*exp(-xi*dot_product(kpoint,[0d0,1d0])) !right
-      Hk_t2g(2,2) = Hk_t2g(2,2) - t3*exp(-xi*dot_product(kpoint,[0d0,-1d0])) !left
-      !yz,yz
-      Hk_t2g(1,1) = Hk_t2g(1,1) - t2*exp(-xi*dot_product(kpoint,[0d0,1d0])) !right
+      !yz,yz (direction x)
+      Hk_t2g(1,1) = Hk_t2g(1,1) - t2*exp(-xi*dot_product(kpoint,[0d0,1d0]))  !right
       Hk_t2g(1,1) = Hk_t2g(1,1) - t2*exp(-xi*dot_product(kpoint,[0d0,-1d0])) !left
-      !yz,yz
-      Hk_t2g(3,3) = Hk_t2g(3,3) - t0*exp(-xi*dot_product(kpoint,[0d0,1d0])) !right
+      !xz,xz (direction y)
+      Hk_t2g(2,2) = Hk_t2g(2,2) - t3*exp(-xi*dot_product(kpoint,[0d0,1d0]))  !right
+      Hk_t2g(2,2) = Hk_t2g(2,2) - t3*exp(-xi*dot_product(kpoint,[0d0,-1d0])) !left
+      !xy,xy (direction z)
+      Hk_t2g(3,3) = Hk_t2g(3,3) - t0*exp(-xi*dot_product(kpoint,[0d0,1d0]))  !right
       Hk_t2g(3,3) = Hk_t2g(3,3) - t0*exp(-xi*dot_product(kpoint,[0d0,-1d0])) !left
       !xz,yz
-      Hk_t2g(1,2) = 0d0
-      Hk_t2g(2,1) = 0d0
+      Hk_t2g(1,2) = Hk_t2g(1,2) + 0d0
+      Hk_t2g(2,1) = Hk_t2g(2,1) + 0d0
+      
       !plusx plusy
-      !xz,xz
-      Hk_t2g(2,2) = 0d0
-      Hk_t2g(2,2) = 0d0
-      !yz,yz
-      Hk_t2g(1,1) = 0d0
-      Hk_t2g(1,1) = 0d0
-      !yz,yz
-      Hk_t2g(3,3) = Hk_t2g(3,3) - t1*exp(-xi*dot_product(kpoint,[1d0,1d0])) !right
+      !yz,yz (direction x)
+      Hk_t2g(1,1) = Hk_t2g(1,1) + 0d0
+      Hk_t2g(1,1) = Hk_t2g(1,1) + 0d0
+      !xz,xz (direction y)
+      Hk_t2g(2,2) = Hk_t2g(2,2) + 0d0
+      Hk_t2g(2,2) = Hk_t2g(2,2) + 0d0
+      !xy,xy (direction z)
+      Hk_t2g(3,3) = Hk_t2g(3,3) - t1*exp(-xi*dot_product(kpoint,[1d0,1d0]))   !right
       Hk_t2g(3,3) = Hk_t2g(3,3) - t1*exp(-xi*dot_product(kpoint,[-1d0,-1d0])) !left
       !xz,yz
-      Hk_t2g(1,2) = Hk_t2g(1,2) - t4*exp(-xi*dot_product(kpoint,[1d0,1d0])) !right
+      Hk_t2g(1,2) = Hk_t2g(1,2) - t4*exp(-xi*dot_product(kpoint,[1d0,1d0]))   !right
       Hk_t2g(1,2) = Hk_t2g(1,2) - t4*exp(-xi*dot_product(kpoint,[-1d0,-1d0])) !left
-      Hk_t2g(2,1) = Hk_t2g(2,1) - t4*exp(-xi*dot_product(kpoint,[1d0,1d0])) !right
+      Hk_t2g(2,1) = Hk_t2g(2,1) - t4*exp(-xi*dot_product(kpoint,[1d0,1d0]))   !right
       Hk_t2g(2,1) = Hk_t2g(2,1) - t4*exp(-xi*dot_product(kpoint,[-1d0,-1d0])) !left
+      
       !plusx minusy
-      !xz,xz
-      Hk_t2g(2,2) = 0d0
-      Hk_t2g(2,2) = 0d0
-      !yz,yz
-      Hk_t2g(1,1) = 0d0
-      Hk_t2g(1,1) = 0d0
-      !yz,yz
+      !yz,yz (direction x)
+      Hk_t2g(1,1) = Hk_t2g(1,1) + 0d0
+      Hk_t2g(1,1) = Hk_t2g(1,1) + 0d0
+      !xz,xz (direction y)
+      Hk_t2g(2,2) = Hk_t2g(2,2) + 0d0
+      Hk_t2g(2,2) = Hk_t2g(2,2) + 0d0
+      !xy,xy (direction z)
       Hk_t2g(3,3) = Hk_t2g(3,3) - t1*exp(-xi*dot_product(kpoint,[1d0,-1d0])) !right
       Hk_t2g(3,3) = Hk_t2g(3,3) - t1*exp(-xi*dot_product(kpoint,[-1d0,1d0])) !left
       !xz,yz
-      Hk_t2g(1,2) = Hk_t2g(1,2) - t4*exp(-xi*dot_product(kpoint,[1d0,-1d0])) !right
-      Hk_t2g(1,2) = Hk_t2g(1,2) - t4*exp(-xi*dot_product(kpoint,[-1d0,1d0])) !left
-      Hk_t2g(2,1) = Hk_t2g(2,1) - t4*exp(-xi*dot_product(kpoint,[1d0,-1d0])) !right
-      Hk_t2g(2,1) = Hk_t2g(2,1) - t4*exp(-xi*dot_product(kpoint,[-1d0,1d0])) !left
+      Hk_t2g(1,2) = Hk_t2g(1,2) + t4*exp(-xi*dot_product(kpoint,[1d0,-1d0])) !right
+      Hk_t2g(1,2) = Hk_t2g(1,2) + t4*exp(-xi*dot_product(kpoint,[-1d0,1d0])) !left
+      Hk_t2g(2,1) = Hk_t2g(2,1) + t4*exp(-xi*dot_product(kpoint,[1d0,-1d0])) !right
+      Hk_t2g(2,1) = Hk_t2g(2,1) + t4*exp(-xi*dot_product(kpoint,[-1d0,1d0])) !left
       !
       !
       Hk_t2g(4:6,4:6) = Hk_t2g(1:3,1:3)
@@ -413,7 +417,6 @@ contains
   !+---------------------------------------------------------------------------+
   
   subroutine get_weissfield()
-    !
     if(cg_scheme=='delta')then
       call dmft_self_consistency(Gmats,Smats,Weiss,Hloc)
       call dmft_write_gf(Weiss,"Delta",axis='mats',iprint=6)
