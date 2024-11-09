@@ -35,7 +35,9 @@ program realistic_soc
   complex(8),allocatable,dimension(:,:,:,:,:)   :: Smats,Sreal
   complex(8),allocatable,dimension(:,:,:,:,:)   :: Weiss,Weiss_
   complex(8),allocatable,dimension(:)           :: Gtest
-  
+ 
+  complex(8),allocatable,dimension(:,:,:,:)     :: S0
+  real(8),allocatable,dimension(:,:)            :: Zmats
  
   complex(8),allocatable                        :: Hloc(:,:,:,:)
   complex(8),allocatable                        :: Hloc_so(:,:)
@@ -107,7 +109,9 @@ program realistic_soc
   allocate(Gmats(Nspin,Nspin,Norb,Norb,Lmats),Greal(Nspin,Nspin,Norb,Norb,Lreal))
   allocate(Smats(Nspin,Nspin,Norb,Norb,Lmats),Sreal(Nspin,Nspin,Norb,Norb,Lreal))
   allocate(Hloc(Nspin,Nspin,Norb,Norb))
+  allocate(S0(Nspin,Nspin,Norb,Norb))
   allocate(Hloc_so(Nso,Nso))
+  allocate(Zmats(Nso,Nso))
   allocate(Gtest(Lmats))
   allocate(dens(Norb))
   
@@ -141,6 +145,7 @@ program realistic_soc
     !Set self-energy matrix and the ones used to calculate Gloc
     call ed_get_sigma(Smats,axis='mats')
     call ed_get_sigma(Sreal,axis='real')
+    s0=Smats(:,:,:,:,1)
     
     !Compute the local gfs on the imaginary axis:
     call get_glocal()
@@ -367,13 +372,13 @@ contains
 
     allocate(lambdasym_vectors(Nbath,NSymMats)); lambdasym_vectors=zero
     allocate(Hsym_basis(Nspin,Nspin,Norb,Norb,NSymMats)); Hsym_basis=zero
-    allocate(Hsym_t2g(Nspin,Nspin,3,3,NSymMats)); Hsym_t2g=zero
+    allocate(Hsym_t2g(2,2,3,3,NSymMats)); Hsym_t2g=zero
 
     !symmetry 1: diagonal
     Hsym_t2g(:,:,:,:,1) = so2nn(zeye(3*Nspin),nspin,3)
 
     !symmetry 2: soc matrix
-    Hsym_t2g(:,:,:,:,2) = spinorbit_matrix_t2g_nn
+    Hsym_t2g(:,:,:,:,2) = spinorbit_matrix_t2g_nn * 2.0
 
     !cut out the block
     Hsym_basis = Hsym_t2g(:,:,1:Norb,1:Norb,:)
@@ -461,6 +466,43 @@ contains
 
   !+---------------------------------------------------------------------------+
   !print zmats
+  !+---------------------------------------------------------------------------+
+
+
+  subroutine get_zmats()
+    complex(8),dimension(Nso,Nso) :: s0so,Uinv,tmpmat,s0nh
+    !
+    !
+    Zmats=zero
+    s0so=nn2so(s0,Nspin,Norb)
+    !Uinv=u_jbasis
+    !call inv(Uinv)
+    
+    !if(ZJBASIS)then
+    !   s0so=matmul(s0so,u_jbasis)
+    !   s0so=matmul(Uinv,s0so)
+    !endif
+    !
+    s0nh = (s0so-conjg(transpose(s0so)))/(2*xi)
+    tmpmat = zeye(6)-s0nh/(pi/beta)
+    !tmpmat = zeye(6) - imag(s0so)/(pi/beta)
+    call inv(tmpmat)
+    Zmats=real(tmpmat)
+    !
+    if(master)then
+      unit=free_unit()
+      open(unit,file="z.dat",position='append')
+      write(unit,*)Zmats(1,1),Zmats(2,2),Zmats(3,3),Zmats(4,4),Zmats(5,5),Zmats(6,6)
+      close(unit)
+      print*,"print Zmats"
+      call print_a_matrix(Zmats)
+    endif             
+  end subroutine get_zmats
+
+
+
+  !+---------------------------------------------------------------------------+
+  !print matrices 
   !+---------------------------------------------------------------------------+
     
   subroutine print_a_matrix(mat)

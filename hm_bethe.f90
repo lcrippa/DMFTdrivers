@@ -1,5 +1,5 @@
 program hm_bethe
-  USE EDIPACK
+  USE EDIPACK2
   USE SCIFOR
   USE MPI
   implicit none
@@ -12,7 +12,7 @@ program hm_bethe
   integer                                     :: Nb
   real(8),dimension(:),allocatable            :: Bath,Bath_prev
   !Local Variables:
-  real(8),dimension(:,:,:,:),allocatable      :: Hloc
+  complex(8),dimension(:,:,:,:),allocatable   :: Hloc
   real(8),dimension(:),allocatable            :: Ebands
   real(8),dimension(:),allocatable            :: Dbands
 
@@ -71,6 +71,7 @@ program hm_bethe
   !SETUP SOLVER
   Nb=ed_get_bath_dimension()
   allocate(bath(Nb),bath_prev(Nb))
+  call ed_set_hloc(Hloc)
   call ed_init_solver(bath)
 
   !DMFT CYCLE
@@ -80,11 +81,11 @@ program hm_bethe
      if(master)write(*,*)"DMFT-loop:",iloop,"/",nloop
      !
      !Solve the EFFECTIVE IMPURITY PROBLEM (first w/ a guess for the bath)
-     call ed_solve(bath,Hloc)
+     call ed_solve(bath)
      !
      !Get Self-energies
-     call ed_get_sigma_matsubara(Smats)
-     call ed_get_sigma_realaxis(Sreal)
+     call ed_get_sigma(Smats,axis="m")
+     call ed_get_sigma(Sreal,axis="r")
      !
      !Compute the local gf:
      do i=1,Lmats
